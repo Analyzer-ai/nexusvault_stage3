@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NexusVault — Web3 Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <!--
+  ╔═══════════════════════════════════════════════╗
+  ║  NEXUSVAULT v3.0.0 — STAGE 3: SPA ROUTING    ║
+  ║  • Pure vanilla JS router (no framework)      ║
+  ║  • 5 pages: Dashboard, Portfolio, NFT,        ║
+  ║    DeFi Pools, Transactions                   ║
+  ║  • Pure SVG chart (no CDN dependency)         ║
+  ║  • Zero eval(), zero innerHTML injection      ║
+  ║  • Safe: only 2 CDNs (Tailwind + GFonts)      ║
+  ╚═══════════════════════════════════════════════╝
+  -->
+  <script>
+    tailwind.config = {
+      darkMode:'class',
+      theme:{extend:{
+        fontFamily:{orbitron:['Orbitron','sans-serif'],mono:['Space Mono','monospace'],sans:['Inter','sans-serif']},
+        colors:{neon:{purple:'#b843f5',cyan:'#00e5ff',green:'#39ff14',pink:'#e040fb'},dark:{950:'#05010f',900:'#0a0518',800:'#110a2a'}},
+      }},
+    }
+  </script>
+  <style>
+    /* ── RESET ── */
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:#05010f;font-family:'Inter',sans-serif;overflow-x:hidden;min-height:100vh;color:#f1f5f9}
+    ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0518}
+    ::-webkit-scrollbar-thumb{background:#7c3aed;border-radius:99px}
+
+    /* ── GLASS ── */
+    .glass{background:rgba(17,10,42,.65);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(184,67,245,.15)}
+    .glass-strong{background:rgba(10,5,24,.9);backdrop-filter:blur(32px) saturate(200%);-webkit-backdrop-filter:blur(32px) saturate(200%);border:1px solid rgba(184,67,245,.22)}
+    .card{background:rgba(17,10,42,.55);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(184,67,245,.14);border-radius:1rem;transition:border-color .3s,box-shadow .3s,transform .3s}
+    .card:hover{border-color:rgba(184,67,245,.38);box-shadow:0 0 32px rgba(184,67,245,.1),0 8px 32px rgba(0,0,0,.45);transform:translateY(-2px)}
+
+    /* ── GLOW ── */
+    .gp{text-shadow:0 0 18px rgba(184,67,245,.85),0 0 40px rgba(184,67,245,.4)}
+    .gc{text-shadow:0 0 18px rgba(0,229,255,.85),0 0 40px rgba(0,229,255,.35)}
+    .gg{text-shadow:0 0 12px rgba(57,255,20,.85)}
+    .gk{text-shadow:0 0 18px rgba(224,64,251,.85),0 0 40px rgba(224,64,251,.4)}
+
+    /* ── BUTTONS ── */
+    .btn-wallet,.btn-email{position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.2);transition:all .3s;cursor:pointer}
+    .btn-wallet{background:linear-gradient(135deg,#7c3aed,#b843f5,#e040fb);box-shadow:0 0 22px rgba(184,67,245,.5),inset 0 1px 0 rgba(255,255,255,.15)}
+    .btn-email{background:linear-gradient(135deg,#0f4c91,#1a73e8,#4fc3f7);box-shadow:0 0 22px rgba(26,115,232,.5),inset 0 1px 0 rgba(255,255,255,.15)}
+    .btn-wallet::before,.btn-email::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,.12),transparent);transform:translateX(-100%);transition:transform .5s}
+    .btn-wallet:hover::before,.btn-email:hover::before{transform:translateX(100%)}
+    .btn-wallet:hover{box-shadow:0 0 40px rgba(184,67,245,.85);transform:translateY(-1px)}
+    .btn-email:hover{box-shadow:0 0 40px rgba(26,115,232,.85);transform:translateY(-1px)}
+
+    /* ── SIDEBAR ── */
+    #sb-backdrop{display:none;position:fixed;inset:0;z-index:40;background:rgba(5,1,15,.75);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+    #sb-backdrop.open{display:block}
+    #sidebar{transform:translateX(-100%);transition:transform .35s cubic-bezier(.16,1,.3,1)}
+    #sidebar.open{transform:translateX(0)}
+    @media(min-width:1024px){#sidebar{transform:translateX(0)!important}#sb-backdrop{display:none!important}}
+
+    /* ── NAV ITEMS ── */
+    .ni{position:relative;transition:all .25s;display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border-radius:.75rem;cursor:pointer;text-decoration:none;margin-bottom:2px}
+    .ni::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:0;background:linear-gradient(180deg,#b843f5,#00e5ff);border-radius:0 3px 3px 0;transition:height .25s;box-shadow:2px 0 12px rgba(184,67,245,.6)}
+    .ni:hover::before,.ni.active::before{height:60%}
+    .ni:hover,.ni.active{background:rgba(184,67,245,.08)}
+    .iw{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;flex-shrink:0;background:rgba(184,67,245,.08);border:1px solid rgba(184,67,245,.15);transition:all .25s}
+    .ni:hover .iw,.ni.active .iw{background:rgba(184,67,245,.2);border-color:rgba(184,67,245,.55);box-shadow:0 0 14px rgba(184,67,245,.35)}
+
+    /* ── HAMBURGER ── */
+    .hl{display:block;width:22px;height:2px;background:#b843f5;border-radius:2px;transition:all .3s;box-shadow:0 0 6px rgba(184,67,245,.6)}
+    #ham.open .hl:nth-child(1){transform:translateY(6px) rotate(45deg)}
+    #ham.open .hl:nth-child(2){opacity:0;transform:scaleX(0)}
+    #ham.open .hl:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+
+    /* ── MISC ── */
+    .chain-badge{font-family:'Space Mono',monospace;font-size:10px;padding:2px 8px;border-radius:99px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.3);color:#00e5ff;letter-spacing:.08em;white-space:nowrap}
+    .net-dot{width:8px;height:8px;background:#39ff14;border-radius:50%;box-shadow:0 0 8px rgba(57,255,20,.8);animation:netpulse 2.5s ease-in-out infinite}
+    @keyframes netpulse{0%,100%{box-shadow:0 0 8px rgba(57,255,20,.8)}50%{box-shadow:0 0 18px rgba(57,255,20,1),0 0 32px rgba(57,255,20,.5)}}
+    .bg-grid{background-image:linear-gradient(rgba(184,67,245,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(184,67,245,.05) 1px,transparent 1px);background-size:40px 40px}
+    .scanline{position:relative;overflow:hidden}
+    .scanline::after{content:'';position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(184,67,245,.25),transparent);animation:scan 6s linear infinite;pointer-events:none}
+    @keyframes scan{0%{top:-2px}100%{top:110%}}
+    @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+    @keyframes ping{75%,100%{transform:scale(2);opacity:0}}
+    .ping-dot{animation:ping 1.8s cubic-bezier(0,0,.2,1) infinite}
+    .logo-glitch{position:relative;font-family:'Orbitron',sans-serif}
+    .logo-glitch:hover::before{content:attr(data-text);position:absolute;left:2px;top:0;color:#00e5ff;clip-path:polygon(0 30%,100% 30%,100% 50%,0 50%);animation:gc .3s steps(2) forwards}
+    @keyframes gc{0%{clip-path:polygon(0 0,100% 0,100% 20%,0 20%);transform:translate(-2px,0)}33%{clip-path:polygon(0 40%,100% 40%,100% 60%,0 60%);transform:translate(2px,0)}66%{clip-path:polygon(0 70%,100% 70%,100% 85%,0 85%);transform:translate(-1px,0)}100%{clip-path:polygon(0 90%,100% 90%,100% 100%,0 100%);transform:translate(0,0)}}
+    .vt{font-family:'Space Mono',monospace;font-size:9px;color:rgba(184,67,245,.5);letter-spacing:.15em}
+
+    /* ── STAT CARDS ── */
+    .sc{position:relative;overflow:hidden;background:rgba(17,10,42,.58);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border-radius:1rem;border:1px solid rgba(184,67,245,.13);transition:all .3s}
+    .sc:hover{border-color:rgba(184,67,245,.42);box-shadow:0 0 36px rgba(184,67,245,.13),0 12px 40px rgba(0,0,0,.5);transform:translateY(-3px)}
+    .sc::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.03) 0%,transparent 60%);pointer-events:none}
+    .sc-cyan{border-color:rgba(0,229,255,.15)}.sc-cyan:hover{border-color:rgba(0,229,255,.45);box-shadow:0 0 36px rgba(0,229,255,.1)}
+    .sc-green{border-color:rgba(57,255,20,.15)}.sc-green:hover{border-color:rgba(57,255,20,.45);box-shadow:0 0 36px rgba(57,255,20,.1)}
+    .sc-pink{border-color:rgba(224,64,251,.15)}.sc-pink:hover{border-color:rgba(224,64,251,.45);box-shadow:0 0 36px rgba(224,64,251,.1)}
+
+    /* ── PROGRESS BAR ── */
+    .pb{height:4px;border-radius:99px;background:rgba(184,67,245,.12);overflow:hidden}
+    .pf{height:100%;border-radius:99px;width:0;transition:width 1.4s cubic-bezier(.16,1,.3,1)}
+
+    /* ── SVG CHART ── */
+    .chart-box{background:rgba(17,10,42,.55);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(184,67,245,.16);border-radius:1rem}
+    #svg-chart{width:100%;height:180px;display:block}
+    .c-line{fill:none;stroke:#b843f5;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+    .c-area{fill:url(#cg)}
+    .c-dot{fill:#b843f5;stroke:#0a0518;stroke-width:2;cursor:pointer;transition:r .15s}
+    .c-dot:hover ~ .c-dot,.c-dot:focus{r:7;fill:#e040fb}
+    .c-xl{font-family:'Space Mono',monospace;font-size:9px;fill:rgba(148,163,184,.6)}
+    .c-yl{font-family:'Space Mono',monospace;font-size:9px;fill:rgba(148,163,184,.5)}
+    .c-grid{stroke:rgba(184,67,245,.07);stroke-width:1}
+    #c-tip{position:absolute;pointer-events:none;background:rgba(10,5,24,.97);border:1px solid rgba(184,67,245,.45);border-radius:.6rem;padding:7px 11px;font-family:'Space Mono',monospace;font-size:11px;color:#e2e8f0;white-space:nowrap;display:none;box-shadow:0 0 20px rgba(184,67,245,.25)}
+    .ctab{padding:3px 10px;border-radius:6px;font-family:'Space Mono',monospace;font-size:10px;color:rgba(148,163,184,.5);cursor:pointer;transition:all .2s;background:none;border:none}
+    .ctab.active{background:rgba(184,67,245,.25);color:#fff;box-shadow:0 0 10px rgba(184,67,245,.2)}
+
+    /* ── TX TABLE ── */
+    .tr{border-bottom:1px solid rgba(184,67,245,.06);transition:background .2s}
+    .tr:last-child{border-bottom:none}.tr:hover{background:rgba(184,67,245,.04)}
+    .tk-row{border-bottom:1px solid rgba(184,67,245,.06);transition:background .2s;border-radius:.5rem}
+    .tk-row:last-child{border-bottom:none}.tk-row:hover{background:rgba(184,67,245,.05)}
+    .badge{font-family:'Space Mono',monospace;font-size:10px;padding:2px 8px;border-radius:99px;white-space:nowrap}
+    .b-ok{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#34d399}
+    .b-pnd{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#fbbf24}
+    .b-err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#f87171}
+    .ti{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;color:#fff}
+
+    /* ── EMAIL MODAL ── */
+    #email-modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(5,1,15,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:1rem}
+    #email-modal.open{display:flex}
+    .modal-box{background:rgba(10,5,24,.97);border:1px solid rgba(26,115,232,.38);box-shadow:0 0 60px rgba(26,115,232,.2),0 0 120px rgba(184,67,245,.1);border-radius:1.25rem;width:100%;max-width:400px;overflow:hidden;animation:mPop .28s cubic-bezier(.16,1,.3,1)}
+    @keyframes mPop{from{opacity:0;transform:scale(.9) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+    .mi{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(26,115,232,.3);border-radius:.75rem;padding:.65rem 1rem;color:#e2e8f0;font-family:'Space Mono',monospace;font-size:13px;outline:none;transition:border-color .2s,box-shadow .2s}
+    .mi:focus{border-color:rgba(26,115,232,.75);box-shadow:0 0 0 3px rgba(26,115,232,.15)}
+    .mi::placeholder{color:rgba(148,163,184,.4)}
+
+    /* ── SPA PAGE TRANSITIONS ── */
+    .page{display:none;animation:pageIn .35s cubic-bezier(.16,1,.3,1)}
+    .page.active{display:block}
+    @keyframes pageIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+    /* ── NFT CARDS ── */
+    .nft-card{background:rgba(17,10,42,.55);border:1px solid rgba(184,67,245,.14);border-radius:1rem;overflow:hidden;transition:all .3s;cursor:pointer}
+    .nft-card:hover{border-color:rgba(184,67,245,.5);box-shadow:0 0 32px rgba(184,67,245,.2),0 8px 32px rgba(0,0,0,.5);transform:translateY(-4px)}
+    .nft-thumb{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative;overflow:hidden}
+    .nft-thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 60%,rgba(10,5,24,.9))}
+
+    /* ── POOL CARD ── */
+    .pool-card{border-radius:.875rem;padding:1rem;transition:box-shadow .3s,transform .3s}
+    .pool-card:hover{transform:translateY(-2px)}
+
+    /* ── PORTFOLIO ASSET ROW ── */
+    .asset-row{border-bottom:1px solid rgba(184,67,245,.06);transition:background .2s}
+    .asset-row:last-child{border-bottom:none}.asset-row:hover{background:rgba(184,67,245,.04)}
+  </style>
+</head>
+
+<body class="bg-grid">
+
+  <!-- AMBIENT BLOBS -->
+  <div aria-hidden="true" style="pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:0;">
+    <div style="position:absolute;top:-10rem;left:-10rem;width:28rem;height:28rem;border-radius:50%;background:radial-gradient(circle,#7c3aed,transparent 70%);filter:blur(60px);opacity:.22;animation:floatY 7s ease-in-out infinite;"></div>
+    <div style="position:absolute;top:35%;right:-8rem;width:22rem;height:22rem;border-radius:50%;background:radial-gradient(circle,#00e5ff,transparent 70%);filter:blur(80px);opacity:.14;animation:floatY 9s ease-in-out infinite reverse;"></div>
+    <div style="position:absolute;bottom:0;left:45%;width:20rem;height:20rem;border-radius:50%;background:radial-gradient(circle,#e040fb,transparent 70%);filter:blur(70px);opacity:.1;"></div>
+  </div>
+
+  <!-- SIDEBAR BACKDROP -->
+  <div id="sb-backdrop" role="button" aria-label="Close sidebar" tabindex="0"></div>
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <aside id="sidebar" class="scanline glass-strong" role="navigation" aria-label="Main navigation"
+    style="position:fixed;top:0;left:0;height:100%;width:17rem;display:flex;flex-direction:column;overflow:hidden;z-index:50;">
+
+    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#b843f5,#00e5ff,transparent);"></div>
+
+    <!-- Logo -->
+    <div style="padding:1.4rem 1.4rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.05);">
+      <div style="display:flex;align-items:center;gap:.75rem;">
+        <div style="position:relative;width:2.5rem;height:2.5rem;flex-shrink:0;">
+          <div style="position:absolute;inset:0;border-radius:.75rem;background:linear-gradient(135deg,#7c3aed,#b843f5,#00e5ff);box-shadow:0 0 20px rgba(184,67,245,.65);"></div>
+          <div style="position:absolute;inset:0;border-radius:.75rem;display:flex;align-items:center;justify-content:center;">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="rgba(255,255,255,.15)" stroke="white" stroke-width="1.5"/>
+              <path d="M9 12l2 2 4-4" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <div class="logo-glitch gp" data-text="NEXUSVAULT" style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:1.05rem;letter-spacing:.06em;color:#fff;">NEXUSVAULT</div>
+          <div class="vt" style="margin-top:2px;">v3.0.0 · STAGE 3</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wallet card -->
+    <div style="margin:.9rem .9rem 0;padding:.75rem;border-radius:.875rem;background:rgba(184,67,245,.05);border:1px solid rgba(184,67,245,.28);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+        <span style="font-family:'Space Mono',monospace;font-size:10px;color:#c084fc;letter-spacing:.12em;text-transform:uppercase;">Wallet</span>
+        <span class="chain-badge">ETH Mainnet</span>
+      </div>
+      <div id="sb-addr" style="font-family:'Space Mono',monospace;font-size:11px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Not connected</div>
+      <div style="margin-top:.5rem;display:flex;align-items:center;gap:.4rem;">
+        <div class="net-dot"></div>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:#34d399;">Network OK</span>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav style="flex:1;padding:.75rem;overflow-y:auto;margin-top:.5rem;">
+      <p style="padding:.25rem .75rem .5rem;font-family:'Space Mono',monospace;font-size:9px;color:rgba(168,85,247,.55);letter-spacing:.15em;text-transform:uppercase;">Main Menu</p>
+
+      <a class="ni active" data-page="dashboard" href="#dashboard">
+        <div class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        <span style="font-size:.875rem;font-weight:500;color:#e2e8f0;">Dashboard</span>
+        <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:9px;background:rgba(168,85,247,.2);color:#c084fc;border:1px solid rgba(168,85,247,.3);padding:1px 7px;border-radius:99px;">Live</span>
+      </a>
+
+      <a class="ni" data-page="portfolio" href="#portfolio">
+        <div class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="1.8"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+        <span style="font-size:.875rem;font-weight:500;color:#94a3b8;">Portfolio</span>
+      </a>
+
+      <a class="ni" data-page="nft" href="#nft">
+        <div class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+        <span style="font-size:.875rem;font-weight:500;color:#94a3b8;">NFT Gallery</span>
+        <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:9px;background:rgba(224,64,251,.15);color:#e040fb;border:1px solid rgba(224,64,251,.3);padding:1px 7px;border-radius:99px;">24</span>
+      </a>
+
+      <a class="ni" data-page="defi" href="#defi">
+        <div class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="1.8"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></div>
+        <span style="font-size:.875rem;font-weight:500;color:#94a3b8;">DeFi Pools</span>
+        <span style="margin-left:auto;position:relative;display:inline-flex;width:8px;height:8px;">
+          <span class="ping-dot" style="position:absolute;inset:0;border-radius:50%;background:#00e5ff;opacity:.7;"></span>
+          <span style="position:relative;display:inline-flex;width:8px;height:8px;border-radius:50%;background:#00e5ff;"></span>
+        </span>
+      </a>
+
+      <a class="ni" data-page="transactions" href="#transactions">
+        <div class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="1.8"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+        <span style="font-size:.875rem;font-weight:500;color:#94a3b8;">Transactions</span>
+      </a>
+
+      <div style="margin:.6rem .5rem;border-top:1px solid rgba(255,255,255,.05);"></div>
+      <p style="padding:.25rem .75rem .5rem;font-family:'Space Mono',monospace;font-size:9px;color:rgba(168,85,247,.55);letter-spacing:.15em;text-transform:uppercase;">Settings</p>
+
+      <a class="ni" href="#" onclick="return false">
+        <div class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M6.3 6.3a8 8 0 000 11.4M17.7 17.7a8 8 0 000-11.4"/></svg></div>
+        <span style="font-size:.875rem;font-weight:500;color:#94a3b8;">Network</span>
+      </a>
+      <a class="ni" href="#" onclick="return false">
+        <div class="iw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+        <span style="font-size:.875rem;font-weight:500;color:#94a3b8;">Settings</span>
+      </a>
+    </nav>
+
+    <!-- Footer -->
+    <div style="padding:.75rem 1rem;border-top:1px solid rgba(255,255,255,.05);">
+      <div style="display:flex;align-items:center;gap:.6rem;">
+        <div id="sb-avatar" style="width:2rem;height:2rem;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,#7c3aed,#e040fb);">U</div>
+        <div style="flex:1;min-width:0;">
+          <div id="sb-user" style="font-size:12px;font-weight:500;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Anonymous User</div>
+          <div id="sb-stat" style="font-family:'Space Mono',monospace;font-size:10px;color:#a78bfa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Not connected</div>
+        </div>
+        <button aria-label="Logout" style="padding:.35rem;border-radius:.5rem;background:transparent;border:1px solid transparent;cursor:pointer;transition:all .2s"
+          onmouseenter="this.style.background='rgba(239,68,68,.1)';this.style.borderColor='rgba(239,68,68,.2)'"
+          onmouseleave="this.style.background='transparent';this.style.borderColor='transparent'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div style="position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#b843f5 50%,transparent);"></div>
+  </aside>
+
+  <!-- ═══════════════ MAIN WRAPPER ═══════════════ -->
+  <div class="lg:pl-64" style="display:flex;flex-direction:column;min-height:100vh;position:relative;z-index:10;">
+
+    <!-- ═══ NAVBAR ═══ -->
+    <header class="glass" style="position:sticky;top:0;z-index:30;height:4rem;display:flex;align-items:center;justify-content:space-between;padding:0 1rem;gap:.75rem;">
+      <div style="position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(184,67,245,.4) 30%,rgba(0,229,255,.4) 70%,transparent);"></div>
+
+      <div style="display:flex;align-items:center;gap:.75rem;min-width:0;">
+        <button id="ham" aria-label="Toggle sidebar" aria-expanded="false"
+          style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;width:2.25rem;height:2.25rem;border-radius:.5rem;background:transparent;border:1px solid transparent;cursor:pointer;transition:all .2s;"
+          class="lg:hidden">
+          <span class="hl"></span><span class="hl"></span><span class="hl"></span>
+        </button>
+        <div class="hidden md:block">
+          <h1 id="page-title" class="gp" style="font-family:'Orbitron',sans-serif;font-size:.8rem;font-weight:700;color:#fff;letter-spacing:.08em;">DASHBOARD</h1>
+          <p style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(167,139,250,.55);margin-top:1px;" id="page-sub">Overview · Real-time</p>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
+        <div class="glass hidden sm:flex" style="align-items:center;gap:.4rem;padding:.35rem .65rem;border-radius:.5rem;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="#facc15"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <span style="font-family:'Space Mono',monospace;font-size:11px;color:#cbd5e1;">32 <span style="color:#475569;">Gwei</span></span>
+        </div>
+        <button class="glass hidden sm:flex" style="align-items:center;gap:.4rem;padding:.35rem .7rem;border-radius:.5rem;border:1px solid rgba(255,255,255,.05);cursor:pointer;">
+          <span style="position:relative;display:flex;width:10px;height:10px;flex-shrink:0;">
+            <span class="ping-dot" style="position:absolute;inset:0;border-radius:50%;background:#34d399;opacity:.65;"></span>
+            <span style="position:relative;width:10px;height:10px;border-radius:50%;background:#34d399;box-shadow:0 0 8px rgba(52,211,153,.8);display:inline-flex;"></span>
+          </span>
+          <span style="font-family:'Space Mono',monospace;font-size:11px;color:#34d399;white-space:nowrap;">ETH Mainnet</span>
+          <span style="font-family:'Space Mono',monospace;font-size:10px;color:#334155;" class="hidden md:inline">#19,834,521</span>
+        </button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:.4rem;flex-shrink:0;">
+        <button class="glass" style="position:relative;width:2.25rem;height:2.25rem;display:flex;align-items:center;justify-content:center;border-radius:.5rem;cursor:pointer;border:1px solid rgba(255,255,255,.05);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span style="position:absolute;top:-2px;right:-2px;width:1rem;height:1rem;display:flex;align-items:center;justify-content:center;border-radius:50%;background:linear-gradient(135deg,#b843f5,#e040fb);font-family:'Space Mono',monospace;font-size:8px;color:#fff;box-shadow:0 0 8px rgba(184,67,245,.6);">3</span>
+        </button>
+        <button id="email-btn" class="btn-email" style="display:flex;align-items:center;gap:.4rem;padding:.45rem .9rem;border-radius:.75rem;font-family:'Orbitron',sans-serif;font-weight:700;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:#fff;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <span class="hidden sm:inline" id="email-lbl">Email Login</span>
+        </button>
+        <button id="wallet-btn" class="btn-wallet" style="display:flex;align-items:center;gap:.4rem;padding:.45rem .9rem;border-radius:.75rem;font-family:'Orbitron',sans-serif;font-weight:700;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:#fff;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 11a1 1 0 100 2 1 1 0 000-2z" fill="currentColor"/><path d="M2 10h20"/></svg>
+          <span class="hidden sm:inline" id="wallet-lbl">Connect Wallet</span>
+          <span class="sm:hidden">Connect</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ═══════════════════════════════
+         SPA PAGES CONTAINER
+    ═══════════════════════════════ -->
+    <main style="flex:1;padding:1.25rem;display:flex;flex-direction:column;" class="md:p-6 lg:p-8">
+
+      <!-- ╔═══════════════════════════════╗
+           ║    PAGE: DASHBOARD            ║
+           ╚═══════════════════════════════╝ -->
+      <div id="page-dashboard" class="page active" style="display:flex;flex-direction:column;gap:1.25rem;">
+
+        <!-- Greeting -->
+        <div class="card" style="padding:1.1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
+          <div>
+            <h2 class="gp" style="font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;color:#fff;letter-spacing:.05em;">Welcome back, Trader 👾</h2>
+            <p style="font-family:'Space Mono',monospace;font-size:11px;color:#64748b;margin-top:3px;">Last login: Today · All systems operational</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:.5rem;"><div class="net-dot"></div><span style="font-family:'Space Mono',monospace;font-size:11px;color:#34d399;">Live Data Active</span></div>
+        </div>
+
+        <!-- Stats 2x2 grid -->
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem;" class="lg:grid-cols-4">
+          <!-- Balance (full width mobile) -->
+          <div class="sc" style="padding:1rem;grid-column:span 2 / span 2;" id="s-bal">
+            <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#b843f5,transparent);border-radius:1rem 1rem 0 0;"></div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem;">
+              <div style="width:2.25rem;height:2.25rem;border-radius:.75rem;display:flex;align-items:center;justify-content:center;background:rgba(184,67,245,.15);border:1px solid rgba(184,67,245,.3);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b843f5" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>
+              </div>
+              <span style="font-family:'Space Mono',monospace;font-size:10px;color:#34d399;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);padding:1px 8px;border-radius:99px;">+12.4%</span>
+            </div>
+            <div id="n-bal" class="gp" style="font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:900;color:#fff;">$0.00</div>
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(192,132,252,.7);margin-top:3px;">Total Portfolio</div>
+            <div class="pb" style="margin-top:.75rem;"><div class="pf" style="background:linear-gradient(90deg,#7c3aed,#b843f5);" data-w="78"></div></div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;color:#334155;margin-top:4px;">78% of target</div>
+          </div>
+          <!-- PnL -->
+          <div class="sc sc-cyan" style="padding:1rem;">
+            <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#00e5ff,transparent);border-radius:1rem 1rem 0 0;"></div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem;">
+              <div style="width:2.25rem;height:2.25rem;border-radius:.75rem;display:flex;align-items:center;justify-content:center;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+              <span style="font-family:'Space Mono',monospace;font-size:10px;color:#34d399;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);padding:1px 8px;border-radius:99px;">↑ 24h</span>
+            </div>
+            <div id="n-pnl" class="gc" style="font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:900;color:#00e5ff;">+$0.00</div>
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(0,229,255,.65);margin-top:3px;">24h PnL</div>
+            <div class="pb" style="margin-top:.75rem;"><div class="pf" style="background:linear-gradient(90deg,#0ea5e9,#00e5ff);" data-w="62"></div></div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;color:#334155;margin-top:4px;">62% win rate</div>
+          </div>
+          <!-- Gas -->
+          <div class="sc sc-green" style="padding:1rem;">
+            <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#39ff14,transparent);border-radius:1rem 1rem 0 0;"></div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem;">
+              <div style="width:2.25rem;height:2.25rem;border-radius:.75rem;display:flex;align-items:center;justify-content:center;background:rgba(57,255,20,.08);border:1px solid rgba(57,255,20,.25);"><svg width="14" height="14" viewBox="0 0 24 24" fill="#39ff14"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+              <span style="font-family:'Space Mono',monospace;font-size:10px;color:#facc15;background:rgba(250,204,21,.1);border:1px solid rgba(250,204,21,.2);padding:1px 8px;border-radius:99px;">32 Gwei</span>
+            </div>
+            <div class="gg" style="font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:900;color:#39ff14;">0.042 ETH</div>
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(57,255,20,.65);margin-top:3px;">Gas Spent</div>
+            <div class="pb" style="margin-top:.75rem;"><div class="pf" style="background:linear-gradient(90deg,#16a34a,#39ff14);" data-w="35"></div></div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;color:#334155;margin-top:4px;">35% of budget</div>
+          </div>
+          <!-- NFT -->
+          <div class="sc sc-pink" style="padding:1rem;grid-column:span 2 / span 2;" class="lg:col-span-1">
+            <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#e040fb,transparent);border-radius:1rem 1rem 0 0;"></div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem;">
+              <div style="width:2.25rem;height:2.25rem;border-radius:.75rem;display:flex;align-items:center;justify-content:center;background:rgba(224,64,251,.1);border:1px solid rgba(224,64,251,.25);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e040fb" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+              <span style="font-family:'Space Mono',monospace;font-size:10px;color:#f0abfc;background:rgba(240,171,252,.1);border:1px solid rgba(240,171,252,.2);padding:1px 8px;border-radius:99px;">+3 new</span>
+            </div>
+            <div id="n-nft" class="gk" style="font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:900;color:#e040fb;">0</div>
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(224,64,251,.65);margin-top:3px;">NFTs Owned</div>
+            <div class="pb" style="margin-top:.75rem;"><div class="pf" style="background:linear-gradient(90deg,#a21caf,#e040fb);" data-w="54"></div></div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;color:#334155;margin-top:4px;">54 ETH floor value</div>
+          </div>
+        </div>
+
+        <!-- Chart + Holdings -->
+        <div style="display:grid;grid-template-columns:1fr;gap:1rem;" class="lg:grid-cols-3">
+          <!-- SVG Chart -->
+          <div class="chart-box" style="padding:1.2rem;position:relative;overflow:visible;" class="lg:col-span-2">
+            <div style="position:absolute;top:0;left:0;right:0;height:1px;border-radius:1rem 1rem 0 0;background:linear-gradient(90deg,transparent,#b843f5 40%,#00e5ff 60%,transparent);"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+              <div>
+                <h2 style="font-family:'Orbitron',sans-serif;font-size:.8rem;font-weight:700;color:#fff;letter-spacing:.05em;">Portfolio Performance</h2>
+                <p style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(167,139,250,.55);margin-top:2px;">Last 7 days · USD</p>
+              </div>
+              <div style="display:flex;gap:4px;padding:4px;border-radius:.5rem;background:rgba(255,255,255,.03);border:1px solid rgba(184,67,245,.1);">
+                <button class="ctab active" data-period="7D">7D</button>
+                <button class="ctab" data-period="30D">30D</button>
+                <button class="ctab" data-period="90D">90D</button>
+              </div>
+            </div>
+            <div style="position:relative;">
+              <svg id="svg-chart" viewBox="0 0 540 180" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#b843f5" stop-opacity="0.35"/>
+                    <stop offset="100%" stop-color="#b843f5" stop-opacity="0.01"/>
+                  </linearGradient>
+                </defs>
+                <line class="c-grid" x1="34" y1="36" x2="540" y2="36"/>
+                <line class="c-grid" x1="34" y1="72" x2="540" y2="72"/>
+                <line class="c-grid" x1="34" y1="108" x2="540" y2="108"/>
+                <line class="c-grid" x1="34" y1="144" x2="540" y2="144"/>
+                <text class="c-yl" x="2" y="34">$58k</text>
+                <text class="c-yl" x="2" y="70">$54k</text>
+                <text class="c-yl" x="2" y="106">$50k</text>
+                <text class="c-yl" x="2" y="142">$46k</text>
+                <path id="c-area" class="c-area"/>
+                <polyline id="c-line" class="c-line"/>
+                <g id="c-dots"></g>
+                <g id="c-xlabs"></g>
+              </svg>
+              <div id="c-tip"></div>
+            </div>
+          </div>
+
+          <!-- Holdings -->
+          <div class="card" style="padding:1.2rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+              <h2 style="font-family:'Orbitron',sans-serif;font-size:.8rem;font-weight:700;color:#fff;">Holdings</h2>
+              <span style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(167,139,250,.55);">by value</span>
+            </div>
+            <div id="holdings-list"></div>
+            <div style="margin-top:.75rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-family:'Space Mono',monospace;font-size:11px;color:#475569;">Total Value</span>
+              <span class="gp" style="font-family:'Orbitron',sans-serif;font-weight:700;font-size:.9rem;color:#fff;">$56,520</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick TX preview -->
+        <div class="card" style="padding:1.2rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">
+            <h2 style="font-family:'Orbitron',sans-serif;font-size:.8rem;font-weight:700;color:#fff;">Recent Transactions</h2>
+            <button onclick="NV.go('transactions')" style="font-family:'Space Mono',monospace;font-size:11px;color:#a78bfa;border:1px solid rgba(168,85,247,.22);padding:.3rem .7rem;border-radius:.5rem;background:transparent;cursor:pointer;transition:all .2s;" onmouseenter="this.style.borderColor='rgba(168,85,247,.5)'" onmouseleave="this.style.borderColor='rgba(168,85,247,.22)'">View All →</button>
+          </div>
+          <div id="dash-tx"></div>
+        </div>
+      </div>
+
+      <!-- ╔═══════════════════════════════╗
+           ║    PAGE: PORTFOLIO            ║
+           ╚═══════════════════════════════╝ -->
+      <div id="page-portfolio" class="page" style="display:none;flex-direction:column;gap:1.25rem;">
+        <!-- Header -->
+        <div class="card" style="padding:1.1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
+          <div>
+            <h2 class="gp" style="font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;color:#fff;">Portfolio Overview</h2>
+            <p style="font-family:'Space Mono',monospace;font-size:11px;color:#64748b;margin-top:3px;">Total assets · Updated live</p>
+          </div>
+          <div style="font-family:'Orbitron',sans-serif;font-size:1.4rem;font-weight:900;color:#fff;" class="gp">$56,520.00</div>
+        </div>
+
+        <!-- Allocation donut-like bars -->
+        <div style="display:grid;grid-template-columns:1fr;gap:1rem;" class="lg:grid-cols-2">
+          <!-- Assets table -->
+          <div class="card" style="padding:1.2rem;">
+            <h3 style="font-family:'Orbitron',sans-serif;font-size:.78rem;font-weight:700;color:#fff;letter-spacing:.05em;margin-bottom:1rem;">Asset Allocation</h3>
+            <div id="portfolio-assets"></div>
+          </div>
+          <!-- PnL breakdown -->
+          <div class="card" style="padding:1.2rem;">
+            <h3 style="font-family:'Orbitron',sans-serif;font-size:.78rem;font-weight:700;color:#fff;letter-spacing:.05em;margin-bottom:1rem;">PnL Breakdown</h3>
+            <div style="display:flex;flex-direction:column;gap:.75rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:.65rem;border-radius:.75rem;background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.15);">
+                <span style="font-family:'Space Mono',monospace;font-size:11px;color:#94a3b8;">Realized PnL</span>
+                <span style="font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;color:#34d399;" class="gg" style="text-shadow:none">+$8,240.00</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:.65rem;border-radius:.75rem;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.15);">
+                <span style="font-family:'Space Mono',monospace;font-size:11px;color:#94a3b8;">Unrealized PnL</span>
+                <span style="font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;color:#00e5ff;" class="gc">+$3,120.00</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:.65rem;border-radius:.75rem;background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.15);">
+                <span style="font-family:'Space Mono',monospace;font-size:11px;color:#94a3b8;">Total Fees Paid</span>
+                <span style="font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;color:#f87171;">-$420.00</span>
+              </div>
+              <div style="margin-top:.5rem;padding-top:.75rem;border-top:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-family:'Space Mono',monospace;font-size:11px;color:#94a3b8;">Net PnL (All Time)</span>
+                <span style="font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:900;color:#fff;" class="gp">+$10,940.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performance history mini -->
+        <div class="card" style="padding:1.2rem;">
+          <h3 style="font-family:'Orbitron',sans-serif;font-size:.78rem;font-weight:700;color:#fff;letter-spacing:.05em;margin-bottom:.75rem;">Performance by Token</h3>
+          <div id="perf-tokens"></div>
+        </div>
+      </div>
+
+      <!-- ╔═══════════════════════════════╗
+           ║    PAGE: NFT GALLERY          ║
+           ╚═══════════════════════════════╝ -->
+      <div id="page-nft" class="page" style="display:none;flex-direction:column;gap:1.25rem;">
+        <div class="card" style="padding:1.1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
+          <div>
+            <h2 class="gk" style="font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;color:#e040fb;">NFT Gallery</h2>
+            <p style="font-family:'Space Mono',monospace;font-size:11px;color:#64748b;margin-top:3px;">24 items · Floor: 54 ETH total</p>
+          </div>
+          <div style="display:flex;gap:.5rem;">
+            <button style="font-family:'Space Mono',monospace;font-size:10px;color:#c084fc;border:1px solid rgba(168,85,247,.3);padding:.35rem .7rem;border-radius:.5rem;background:rgba(168,85,247,.1);cursor:pointer;">All</button>
+            <button style="font-family:'Space Mono',monospace;font-size:10px;color:#64748b;border:1px solid rgba(255,255,255,.08);padding:.35rem .7rem;border-radius:.5rem;background:transparent;cursor:pointer;">Art</button>
+            <button style="font-family:'Space Mono',monospace;font-size:10px;color:#64748b;border:1px solid rgba(255,255,255,.08);padding:.35rem .7rem;border-radius:.5rem;background:transparent;cursor:pointer;">PFP</button>
+            <button style="font-family:'Space Mono',monospace;font-size:10px;color:#64748b;border:1px solid rgba(255,255,255,.08);padding:.35rem .7rem;border-radius:.5rem;background:transparent;cursor:pointer;">Game</button>
+          </div>
+        </div>
+        <div id="nft-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem;" class="sm:grid-cols-3 lg:grid-cols-4"></div>
+      </div>
+
+      <!-- ╔═══════════════════════════════╗
+           ║    PAGE: DEFI POOLS           ║
+           ╚═══════════════════════════════╝ -->
+      <div id="page-defi" class="page" style="display:none;flex-direction:column;gap:1.25rem;">
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem;" class="lg:grid-cols-4">
+          <div class="sc" style="padding:1rem;">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(167,139,250,.55);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.1em;">Total Locked</div>
+            <div class="gp" style="font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:700;color:#fff;">$26,050</div>
+          </div>
+          <div class="sc sc-cyan" style="padding:1rem;">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(0,229,255,.6);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.1em;">Avg APY</div>
+            <div class="gc" style="font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:700;color:#00e5ff;">20.8%</div>
+          </div>
+          <div class="sc sc-green" style="padding:1rem;">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(57,255,20,.6);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.1em;">Total Rewards</div>
+            <div class="gg" style="font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:700;color:#39ff14;">$1,248</div>
+          </div>
+          <div class="sc sc-pink" style="padding:1rem;">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(224,64,251,.6);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.1em;">Active Pools</div>
+            <div class="gk" style="font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:700;color:#e040fb;">3</div>
+          </div>
+        </div>
+
+        <!-- Pools cards -->
+        <div id="defi-pools-grid" style="display:flex;flex-direction:column;gap:.9rem;"></div>
+      </div>
+
+      <!-- ╔═══════════════════════════════╗
+           ║    PAGE: TRANSACTIONS         ║
+           ╚═══════════════════════════════╝ -->
+      <div id="page-transactions" class="page" style="display:none;flex-direction:column;gap:1.25rem;">
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem;" class="lg:grid-cols-4">
+          <div class="sc" style="padding:.85rem;"><div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(167,139,250,.55);margin-bottom:.3rem;">Total TX</div><div class="gp" style="font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;color:#fff;">142</div></div>
+          <div class="sc sc-cyan" style="padding:.85rem;"><div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(0,229,255,.6);margin-bottom:.3rem;">Successful</div><div class="gc" style="font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;color:#00e5ff;">138</div></div>
+          <div class="sc sc-green" style="padding:.85rem;"><div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(57,255,20,.6);margin-bottom:.3rem;">Total Gas</div><div class="gg" style="font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;color:#39ff14;">0.42 ETH</div></div>
+          <div class="sc sc-pink" style="padding:.85rem;"><div style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(224,64,251,.6);margin-bottom:.3rem;">Failed</div><div class="gk" style="font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;color:#e040fb;">4</div></div>
+        </div>
+
+        <!-- Full TX table -->
+        <div class="card" style="padding:1.2rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+            <h2 style="font-family:'Orbitron',sans-serif;font-size:.8rem;font-weight:700;color:#fff;">Transaction History</h2>
+            <span style="font-family:'Space Mono',monospace;font-size:10px;color:rgba(167,139,250,.55);">Last 30 days</span>
+          </div>
+          <div class="hidden md:block" style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom:1px solid rgba(184,67,245,.1);">
+                  <th style="text-align:left;font-family:'Space Mono',monospace;font-size:9px;color:rgba(168,85,247,.55);text-transform:uppercase;letter-spacing:.12em;padding-bottom:.75rem;padding-right:1rem;">TX Hash</th>
+                  <th style="text-align:left;font-family:'Space Mono',monospace;font-size:9px;color:rgba(168,85,247,.55);text-transform:uppercase;letter-spacing:.12em;padding-bottom:.75rem;padding-right:1rem;">Type</th>
+                  <th style="text-align:left;font-family:'Space Mono',monospace;font-size:9px;color:rgba(168,85,247,.55);text-transform:uppercase;letter-spacing:.12em;padding-bottom:.75rem;padding-right:1rem;">Amount</th>
+                  <th style="text-align:left;font-family:'Space Mono',monospace;font-size:9px;color:rgba(168,85,247,.55);text-transform:uppercase;letter-spacing:.12em;padding-bottom:.75rem;padding-right:1rem;">Gas</th>
+                  <th style="text-align:left;font-family:'Space Mono',monospace;font-size:9px;color:rgba(168,85,247,.55);text-transform:uppercase;letter-spacing:.12em;padding-bottom:.75rem;padding-right:1rem;">Time</th>
+                  <th style="text-align:left;font-family:'Space Mono',monospace;font-size:9px;color:rgba(168,85,247,.55);text-transform:uppercase;letter-spacing:.12em;padding-bottom:.75rem;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tx-full-body"></tbody>
+            </table>
+          </div>
+          <div class="md:hidden" id="tx-full-mobile" style="display:flex;flex-direction:column;gap:.6rem;"></div>
+        </div>
+      </div>
+
+    </main><!-- end main -->
+  </div><!-- end main wrapper -->
+
+  <!-- ═══ EMAIL MODAL ═══ -->
+  <div id="email-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box">
+      <div style="height:2px;background:linear-gradient(90deg,transparent,#1a73e8,#4fc3f7,transparent);"></div>
+      <div style="padding:1.4rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;">
+          <div style="display:flex;align-items:center;gap:.65rem;">
+            <div style="width:2.2rem;height:2.2rem;border-radius:.75rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f4c91,#1a73e8);box-shadow:0 0 16px rgba(26,115,232,.5);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <div>
+              <h2 id="modal-title" style="font-family:'Orbitron',sans-serif;font-weight:700;font-size:.85rem;color:#fff;">Email Login</h2>
+              <p style="font-family:'Space Mono',monospace;font-size:10px;color:#60a5fa;margin-top:1px;">Secure · Encrypted</p>
+            </div>
+          </div>
+          <button id="modal-close" style="width:2rem;height:2rem;display:flex;align-items:center;justify-content:center;border-radius:.5rem;background:transparent;border:1px solid transparent;cursor:pointer;color:#64748b;transition:all .2s" onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='transparent'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.75rem;">
+          <div>
+            <label style="display:block;font-family:'Space Mono',monospace;font-size:10px;color:#94a3b8;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.4rem;">Email</label>
+            <input id="e-email" type="email" placeholder="you@example.com" autocomplete="email" class="mi"/>
+          </div>
+          <div>
+            <label style="display:block;font-family:'Space Mono',monospace;font-size:10px;color:#94a3b8;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.4rem;">Password</label>
+            <input id="e-pass" type="password" placeholder="••••••••" autocomplete="current-password" class="mi"/>
+          </div>
+          <div id="e-status" style="display:none;font-family:'Space Mono',monospace;font-size:11px;padding:.45rem .75rem;border-radius:.5rem;"></div>
+          <button id="e-submit" class="btn-email" style="width:100%;padding:.65rem;border-radius:.75rem;font-family:'Orbitron',sans-serif;font-weight:700;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#fff;cursor:pointer;">
+            <span id="e-lbl">Sign In</span>
+          </button>
+          <p style="text-align:center;font-family:'Space Mono',monospace;font-size:10px;color:#1e293b;">Backend → Stage 4</p>
+        </div>
+      </div>
+      <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(26,115,232,.4) 50%,transparent);"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       JAVASCRIPT — SPA ROUTER + ALL LOGIC
+  ══════════════════════════════════════════ -->
+  <script>
+  (function() {
+    'use strict';
+
+    /* ═══════════════════════════════════════
+       DATA STORE
+    ═══════════════════════════════════════ */
+    const DATA = {
+      tokens: [
+        { sym:'ETH', name:'Ethereum', val:38420, qty:'12.4 ETH',  pct:+8.2, alloc:68, grad:'linear-gradient(135deg,#627eea,#8a9ff0)' },
+        { sym:'BTC', name:'Bitcoin',  val:12100, qty:'0.18 BTC',  pct:+3.4, alloc:22, grad:'linear-gradient(135deg,#f7931a,#ffb347)' },
+        { sym:'SOL', name:'Solana',   val:4800,  qty:'28.5 SOL',  pct:-1.2, alloc:8,  grad:'linear-gradient(135deg,#9945ff,#14f195)' },
+        { sym:'USDC',name:'USD Coin', val:1200,  qty:'1,200 USDC',pct:0,    alloc:2,  grad:'linear-gradient(135deg,#2775ca,#4fc3f7)' },
+      ],
+      txList: [
+        { hash:'0xA3f2...8b1E', type:'Swap',      icon:'⇄', amount:'+2.4 ETH',   gas:'0.003', time:'2m ago',   st:'ok'  },
+        { hash:'0xC7d9...2F4A', type:'Transfer',  icon:'↑', amount:'-500 USDC',  gas:'0.001', time:'18m ago',  st:'ok'  },
+        { hash:'0xE1a8...9C3B', type:'Mint NFT',  icon:'◈', amount:'-0.08 ETH',  gas:'0.006', time:'1h ago',   st:'pnd' },
+        { hash:'0xB5f3...1D7C', type:'Approve',   icon:'✓', amount:'∞ USDC',     gas:'0.002', time:'3h ago',   st:'ok'  },
+        { hash:'0x9Ae1...6F2D', type:'Liquidity', icon:'≋', amount:'+14.2 USDC', gas:'0.004', time:'5h ago',   st:'err' },
+        { hash:'0xD2b4...7A1F', type:'Swap',      icon:'⇄', amount:'+0.5 ETH',   gas:'0.003', time:'8h ago',   st:'ok'  },
+        { hash:'0xF8c3...5E9B', type:'Stake',     icon:'◉', amount:'-200 USDC',  gas:'0.002', time:'1d ago',   st:'ok'  },
+        { hash:'0xA1e7...3D2C', type:'Unstake',   icon:'◎', amount:'+205 USDC',  gas:'0.002', time:'2d ago',   st:'ok'  },
+      ],
+      nfts: [
+        { name:'CyberPunk #042', collection:'CyberPunks', floor:'2.4 ETH', emoji:'🤖', rarity:'Rare',    clr:'#b843f5' },
+        { name:'NeonApe #118',  collection:'NeonApes',   floor:'1.8 ETH', emoji:'🐒', rarity:'Common',  clr:'#00e5ff' },
+        { name:'PixelDragon #7',collection:'PixelDragons',floor:'4.2 ETH',emoji:'🐉', rarity:'Legendary',clr:'#e040fb' },
+        { name:'VoidKnight #31',collection:'VoidKnights',floor:'0.9 ETH', emoji:'⚔️', rarity:'Uncommon', clr:'#facc15' },
+        { name:'StarGazer #204', collection:'StarGazers', floor:'1.1 ETH', emoji:'🌟', rarity:'Common',  clr:'#39ff14' },
+        { name:'DarkElf #88',   collection:'DarkElves',  floor:'3.0 ETH', emoji:'🧝', rarity:'Epic',    clr:'#f87171' },
+        { name:'CryptoBot #11', collection:'CryptoBots', floor:'2.1 ETH', emoji:'🦾', rarity:'Rare',    clr:'#00e5ff' },
+        { name:'LunarFox #55',  collection:'LunarFoxes', floor:'0.7 ETH', emoji:'🦊', rarity:'Common',  clr:'#b843f5' },
+      ],
+      pools: [
+        { pair:'ETH/USDC', a:'ETH', b:'USDC', ag:'linear-gradient(135deg,#627eea,#8a9ff0)', bg:'linear-gradient(135deg,#2775ca,#4fc3f7)', liq:'$14,200', apy:'18.4%', reward:'+0.42 ETH',  vol:'$2.1M', border:'rgba(0,229,255,.2)',  bg_card:'rgba(0,229,255,.04)',  clr:'#00e5ff' },
+        { pair:'BTC/ETH',  a:'BTC', b:'ETH',  ag:'linear-gradient(135deg,#f7931a,#ffb347)', bg:'linear-gradient(135deg,#627eea,#8a9ff0)', liq:'$8,750',  apy:'11.2%', reward:'+0.002 BTC', vol:'$890K', border:'rgba(184,67,245,.2)',border_bg:'rgba(184,67,245,.04)', clr:'#b843f5',bg_card:'rgba(184,67,245,.04)' },
+        { pair:'SOL/USDC', a:'SOL', b:'USDC', ag:'linear-gradient(135deg,#9945ff,#14f195)', bg:'linear-gradient(135deg,#2775ca,#4fc3f7)', liq:'$3,100',  apy:'32.8%', reward:'+1.8 SOL',   vol:'$480K', border:'rgba(57,255,20,.2)',  bg_card:'rgba(57,255,20,.03)',  clr:'#39ff14' },
+      ],
+      chart: {
+        '7D':  { labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], vals:[48200,51300,49800,53400,52100,55600,56520] },
+        '30D': { labels:['W1','W2','W3','W4'],                      vals:[42000,47500,51000,56520] },
+        '90D': { labels:['Jan','Feb','Mar'],                         vals:[31000,44000,56520] },
+      }
+    };
+
+    /* ═══════════════════════════════════════
+       SPA ROUTER
+    ═══════════════════════════════════════ */
+    const pageMeta = {
+      dashboard:    { title:'DASHBOARD',    sub:'Overview · Real-time' },
+      portfolio:    { title:'PORTFOLIO',    sub:'Asset allocation · PnL' },
+      nft:          { title:'NFT GALLERY',  sub:'24 items · ERC-721' },
+      defi:         { title:'DEFI POOLS',   sub:'Liquidity · Yield farming' },
+      transactions: { title:'TRANSACTIONS', sub:'History · 30 days' },
+    };
+
+    function showPage(id) {
+      /* hide all */
+      document.querySelectorAll('.page').forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+      });
+      /* show target */
+      const el = document.getElementById('page-' + id);
+      if(!el) return;
+      el.style.display = 'flex';
+      /* force reflow for animation */
+      void el.offsetWidth;
+      el.classList.add('active');
+
+      /* update nav active state */
+      document.querySelectorAll('.ni[data-page]').forEach(n => n.classList.remove('active'));
+      const navEl = document.querySelector('.ni[data-page="' + id + '"]');
+      if(navEl) navEl.classList.add('active');
+
+      /* update page title */
+      const meta = pageMeta[id] || { title: id.toUpperCase(), sub:'' };
+      const ptEl = document.getElementById('page-title');
+      const psEl = document.getElementById('page-sub');
+      if(ptEl) ptEl.textContent = meta.title;
+      if(psEl) psEl.textContent = meta.sub;
+
+      /* version tag update */
+      const vt = document.querySelector('.vt');
+      if(vt) vt.textContent = 'v3.0.0 · ' + id.toUpperCase();
+
+      /* lazy init page content */
+      if(id === 'dashboard' && !window._dashInit) { initDashboard(); window._dashInit = true; }
+      if(id === 'portfolio' && !window._portInit)  { initPortfolio(); window._portInit = true; }
+      if(id === 'nft'       && !window._nftInit)   { initNFT();       window._nftInit = true; }
+      if(id === 'defi'      && !window._defiInit)  { initDefi();      window._defiInit = true; }
+      if(id === 'transactions' && !window._txInit) { initTx();        window._txInit = true; }
+    }
+
+    /* Public API for onclick="" */
+    window.NV = { go: showPage };
+
+    /* ═══════════════════════════════════════
+       SIDEBAR + NAV
+    ═══════════════════════════════════════ */
+    const sb    = document.getElementById('sidebar');
+    const bd    = document.getElementById('sb-backdrop');
+    const ham   = document.getElementById('ham');
+
+    function openSB()  { sb.classList.add('open'); bd.classList.add('open'); ham.classList.add('open'); ham.setAttribute('aria-expanded','true'); document.body.style.overflow='hidden'; }
+    function closeSB() { sb.classList.remove('open'); bd.classList.remove('open'); ham.classList.remove('open'); ham.setAttribute('aria-expanded','false'); document.body.style.overflow=''; }
+
+    ham.addEventListener('click', () => sb.classList.contains('open') ? closeSB() : openSB());
+    bd.addEventListener('click', closeSB);
+    bd.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') closeSB(); });
+    window.addEventListener('resize', () => { if(window.innerWidth >= 1024) closeSB(); });
+
+    document.querySelectorAll('.ni[data-page]').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        showPage(a.dataset.page);
+        if(window.innerWidth < 1024) closeSB();
+      });
+    });
+
+    document.addEventListener('keydown', e => {
+      if(e.key === 'Escape') { closeSB(); closeModal(); }
+    });
+
+    /* ═══════════════════════════════════════
+       HELPERS
+    ═══════════════════════════════════════ */
+    function countUp(el, end, pre, suf, dec) {
+      if(!el) return;
+      const dur=1500, t0=performance.now();
+      (function s(t){
+        const p=Math.min((t-t0)/dur,1), e=1-Math.pow(1-p,3), v=end*e;
+        el.textContent=pre+(dec?v.toLocaleString('en',{minimumFractionDigits:dec,maximumFractionDigits:dec}):Math.floor(v).toLocaleString())+suf;
+        if(p<1) requestAnimationFrame(s);
+      })(t0);
+    }
+    function animBars() {
+      document.querySelectorAll('.pf[data-w]').forEach(b => setTimeout(()=>{ b.style.width=b.dataset.w+'%'; },250));
+    }
+    function amtClr(a) { return a.startsWith('+')?'#34d399':a.startsWith('-')?'#f87171':'#94a3b8'; }
+    const bdgMap = { ok:['badge b-ok','success'], pnd:['badge b-pnd','pending'], err:['badge b-err','failed'] };
+
+    /* Safe DOM builder — no innerHTML with user data */
+    function el(tag, styles, text) {
+      const e = document.createElement(tag);
+      if(styles) e.style.cssText = styles;
+      if(text !== undefined) e.textContent = text;
+      return e;
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE: DASHBOARD
+    ═══════════════════════════════════════ */
+    function initDashboard() {
+      /* Counters */
+      setTimeout(() => {
+        countUp(document.getElementById('n-bal'), 56520, '$', '', 2);
+        countUp(document.getElementById('n-pnl'), 1840,  '+$','', 2);
+        countUp(document.getElementById('n-nft'), 24, '','', 0);
+        animBars();
+      }, 300);
+
+      /* Holdings list */
+      const hl = document.getElementById('holdings-list');
+      if(hl) {
+        DATA.tokens.forEach(t => {
+          const row = el('div','display:flex;align-items:center;gap:.65rem;padding:.6rem .25rem;border-bottom:1px solid rgba(184,67,245,.06);transition:background .2s;border-radius:.5rem;');
+          row.addEventListener('mouseenter',()=>row.style.background='rgba(184,67,245,.05)');
+          row.addEventListener('mouseleave',()=>row.style.background='');
+          const ico = el('div',`width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;color:#fff;background:${t.grad};`);
+          ico.textContent = t.sym;
+          const info = el('div','flex:1;min-width:0;');
+          const r1 = el('div','display:flex;justify-content:space-between;');
+          const nm = el('span','font-size:.875rem;font-weight:500;color:#e2e8f0;',t.name);
+          const vl = el('span',"font-family:'Space Mono',monospace;font-size:.8rem;font-weight:700;color:#fff;",'$'+t.val.toLocaleString());
+          r1.append(nm,vl);
+          const r2 = el('div','display:flex;justify-content:space-between;margin-top:2px;');
+          const qt = el('span',"font-family:'Space Mono',monospace;font-size:10px;color:#64748b;",t.qty);
+          const pc = el('span',"font-family:'Space Mono',monospace;font-size:10px;color:"+(t.pct>0?'#34d399':t.pct<0?'#f87171':'#94a3b8')+';',(t.pct>0?'+':'')+t.pct+'%');
+          r2.append(qt,pc);
+          const pb = el('div','height:4px;border-radius:99px;background:rgba(184,67,245,.12);overflow:hidden;margin-top:5px;');
+          const pf = el('div',`height:100%;border-radius:99px;width:0;background:${t.grad};transition:width 1.4s cubic-bezier(.16,1,.3,1);`);
+          pf.dataset.w = t.alloc;
+          pb.appendChild(pf);
+          info.append(r1,r2,pb);
+          row.append(ico,info);
+          hl.appendChild(row);
+        });
+        setTimeout(()=>hl.querySelectorAll('[data-w]').forEach(b=>b.style.width=b.dataset.w+'%'),300);
+      }
+
+      /* Dashboard quick TX (3 items) */
+      const dTx = document.getElementById('dash-tx');
+      if(dTx) buildTxCards(dTx, DATA.txList.slice(0,3), true);
+
+      /* SVG Chart */
+      drawChart('7D');
+      document.querySelectorAll('.ctab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+          drawChart(btn.dataset.period);
+        });
+      });
+    }
+
+    /* SVG Chart */
+    const W=540,H=180,PL=34,PR=12,PT=8,PB=24;
+    const cW=W-PL-PR, cH=H-PT-PB;
+    function drawChart(period) {
+      const {labels,vals}=DATA.chart[period], n=vals.length;
+      const mn=Math.min(...vals)*.98, mx=Math.max(...vals)*1.005;
+      const xO=i=>PL+(i/(n-1))*cW, yO=v=>PT+cH-((v-mn)/(mx-mn))*cH;
+      const pts=vals.map((v,i)=>`${xO(i).toFixed(1)},${yO(v).toFixed(1)}`).join(' ');
+      const aP=`M${PL},${yO(vals[0]).toFixed(1)} `+vals.map((v,i)=>`${xO(i).toFixed(1)},${yO(v).toFixed(1)}`).join(' L')+` L${xO(n-1).toFixed(1)},${H-PB} L${PL},${H-PB} Z`;
+      document.getElementById('c-area').setAttribute('d',aP);
+      document.getElementById('c-line').setAttribute('points',pts);
+      const dotsG=document.getElementById('c-dots'), xlG=document.getElementById('c-xlabs');
+      dotsG.innerHTML=''; xlG.innerHTML='';
+      const tip=document.getElementById('c-tip');
+      vals.forEach((v,i)=>{
+        const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        c.setAttribute('cx',xO(i).toFixed(1)); c.setAttribute('cy',yO(v).toFixed(1));
+        c.setAttribute('r','4.5'); c.setAttribute('class','c-dot');
+        c.addEventListener('mouseenter',()=>{ tip.style.display='block'; tip.textContent=labels[i]+': $'+v.toLocaleString(); });
+        c.addEventListener('mousemove',e=>{ const box=e.target.closest('[style*="position:relative"]').getBoundingClientRect(); tip.style.left=(e.clientX-box.left+10)+'px'; tip.style.top=(e.clientY-box.top-40)+'px'; });
+        c.addEventListener('mouseleave',()=>{ tip.style.display='none'; });
+        dotsG.appendChild(c);
+        const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+        t.setAttribute('x',xO(i).toFixed(1)); t.setAttribute('y',H-4); t.setAttribute('text-anchor','middle'); t.setAttribute('class','c-xl');
+        t.textContent=labels[i]; xlG.appendChild(t);
+      });
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE: PORTFOLIO
+    ═══════════════════════════════════════ */
+    function initPortfolio() {
+      const pa = document.getElementById('portfolio-assets');
+      if(pa) {
+        DATA.tokens.forEach(t => {
+          const row = el('div','display:flex;align-items:center;gap:.75rem;padding:.75rem .25rem;border-bottom:1px solid rgba(184,67,245,.06);');
+          const ico = el('div',`width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;color:#fff;background:${t.grad};`);
+          ico.textContent = t.sym;
+          const info = el('div','flex:1;min-width:0;');
+          const r1 = el('div','display:flex;justify-content:space-between;margin-bottom:4px;');
+          r1.append(
+            el('span','font-size:.875rem;font-weight:500;color:#e2e8f0;',t.name),
+            el('span',"font-family:'Space Mono',monospace;font-size:.8rem;font-weight:700;color:#fff;",'$'+t.val.toLocaleString())
+          );
+          const pb=el('div','height:5px;border-radius:99px;background:rgba(184,67,245,.1);overflow:hidden;');
+          const pf=el('div',`height:100%;width:${t.alloc}%;border-radius:99px;background:${t.grad};transition:width 1.2s;`);
+          pb.appendChild(pf);
+          const r2=el('div','display:flex;justify-content:space-between;margin-top:4px;');
+          r2.append(
+            el('span',"font-family:'Space Mono',monospace;font-size:10px;color:#64748b;",t.qty+' · '+t.alloc+'%'),
+            el('span',"font-family:'Space Mono',monospace;font-size:10px;color:"+(t.pct>0?'#34d399':t.pct<0?'#f87171':'#94a3b8')+";",(t.pct>0?'+':'')+t.pct+'%')
+          );
+          info.append(r1,pb,r2);
+          row.append(ico,info);
+          pa.appendChild(row);
+        });
+      }
+
+      const pt = document.getElementById('perf-tokens');
+      if(pt) {
+        const perfData = [
+          { sym:'ETH', w:'+$4,120', pct:'+12.0%', ok:true },
+          { sym:'BTC', w:'+$1,840', pct:'+5.4%',  ok:true },
+          { sym:'SOL', w:'-$240',   pct:'-1.2%',  ok:false },
+          { sym:'USDC',w:'+$0',     pct:'0.0%',   ok:null },
+        ];
+        perfData.forEach(p => {
+          const row=el('div','display:flex;align-items:center;justify-content:space-between;padding:.65rem .5rem;border-bottom:1px solid rgba(184,67,245,.06);');
+          const left=el('div','display:flex;align-items:center;gap:.6rem;');
+          const sym=el('div',"font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;color:#fff;width:2.5rem;");
+          sym.textContent=p.sym;
+          const bar=el('div','flex:1;height:6px;border-radius:99px;background:rgba(184,67,245,.1);overflow:hidden;width:120px;');
+          const fill=el('div',`height:100%;border-radius:99px;background:${p.ok===true?'linear-gradient(90deg,#059669,#34d399)':p.ok===false?'linear-gradient(90deg,#dc2626,#f87171)':'rgba(148,163,184,.3)'};width:${p.ok===true?'70%':p.ok===false?'20%':'50%'};`);
+          bar.appendChild(fill);
+          left.append(sym,bar);
+          const right=el('div','display:flex;gap:1rem;align-items:center;');
+          right.append(
+            el('span',"font-family:'Space Mono',monospace;font-size:.8rem;font-weight:700;color:"+(p.ok===true?'#34d399':p.ok===false?'#f87171':'#94a3b8')+';',p.w),
+            el('span',"font-family:'Space Mono',monospace;font-size:10px;color:"+(p.ok===true?'#34d399':p.ok===false?'#f87171':'#94a3b8')+';',p.pct)
+          );
+          row.append(left,right);
+          pt.appendChild(row);
+        });
+      }
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE: NFT
+    ═══════════════════════════════════════ */
+    function initNFT() {
+      const grid = document.getElementById('nft-grid');
+      if(!grid) return;
+      DATA.nfts.forEach(n => {
+        const card = el('div','');
+        card.className = 'nft-card';
+        const thumb = el('div','');
+        thumb.className = 'nft-thumb';
+        thumb.style.background = `radial-gradient(circle at 50% 40%, ${n.clr}33, rgba(10,5,24,.95))`;
+        const emo = el('div','font-size:3rem;position:relative;z-index:1;');
+        emo.textContent = n.emoji;
+        thumb.appendChild(emo);
+        const body = el('div','padding:.75rem;');
+        const nm = el('div',"font-family:'Orbitron',sans-serif;font-size:.72rem;font-weight:700;color:#fff;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;");
+        nm.textContent = n.name;
+        const col = el('div',"font-family:'Space Mono',monospace;font-size:9px;color:#64748b;margin-bottom:.5rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;");
+        col.textContent = n.collection;
+        const footer = el('div','display:flex;align-items:center;justify-content:space-between;');
+        const floor = el('div','');
+        const fl1 = el('div',"font-family:'Space Mono',monospace;font-size:9px;color:#475569;",'Floor');
+        const fl2 = el('div',"font-family:'Space Mono',monospace;font-size:.8rem;font-weight:700;color:#fff;");
+        fl2.textContent = n.floor;
+        floor.append(fl1,fl2);
+        const rar = el('span','');
+        rar.className = 'badge';
+        rar.style.background = n.clr + '20';
+        rar.style.border = '1px solid ' + n.clr + '55';
+        rar.style.color = n.clr;
+        rar.textContent = n.rarity;
+        footer.append(floor,rar);
+        body.append(nm,col,footer);
+        card.append(thumb,body);
+        grid.appendChild(card);
+      });
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE: DEFI
+    ═══════════════════════════════════════ */
+    function initDefi() {
+      const pg = document.getElementById('defi-pools-grid');
+      if(!pg) return;
+      DATA.pools.forEach(p => {
+        const card = el('div',`border-radius:1rem;border:1px solid ${p.border};background:${p.bg_card};padding:1.2rem;transition:all .3s;`);
+        card.addEventListener('mouseenter',()=>{ card.style.transform='translateY(-2px)'; card.style.boxShadow=`0 0 32px ${p.clr}22`; });
+        card.addEventListener('mouseleave',()=>{ card.style.transform=''; card.style.boxShadow=''; });
+
+        /* header */
+        const hdr = el('div','display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;');
+        const left = el('div','display:flex;align-items:center;gap:.6rem;');
+        const icos = el('div','display:flex;');
+        [p.a,p.b].forEach((s,i) => {
+          const ico=el('div',`width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:7px;font-weight:700;color:#fff;background:${i===0?p.ag:p.bg};${i>0?'margin-left:-8px;':''}`);
+          ico.textContent=s; icos.appendChild(ico);
+        });
+        const pairName=el('span','font-size:.9rem;font-weight:600;color:#e2e8f0;',p.pair);
+        left.append(icos,pairName);
+        const apyBadge=el('span',`font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:${p.clr};background:${p.clr}18;border:1px solid ${p.clr}44;padding:3px 10px;border-radius:99px;`,'APY: '+p.apy);
+        hdr.append(left,apyBadge);
+
+        /* stats grid */
+        const sg=el('div','display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1rem;');
+        [
+          {label:'Liquidity',val:p.liq,c:'#fff'},
+          {label:'24h Volume',val:p.vol,c:'#94a3b8'},
+          {label:'Rewards',   val:p.reward,c:'#facc15'},
+        ].forEach(s=>{
+          const box=el('div','text-align:center;padding:.5rem;border-radius:.5rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);');
+          box.append(
+            el('div',"font-family:'Space Mono',monospace;font-size:9px;color:#475569;margin-bottom:3px;",s.label),
+            el('div',`font-family:'Orbitron',sans-serif;font-size:.78rem;font-weight:700;color:${s.c};`,s.val)
+          );
+          sg.appendChild(box);
+        });
+
+        /* action btns */
+        const actions=el('div','display:flex;gap:.5rem;');
+        ['Add Liquidity','Remove','Claim'].forEach((lbl,i) => {
+          const btn=el('button',`flex:1;padding:.5rem;border-radius:.625rem;font-family:'Orbitron',sans-serif;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s;${i===0?`background:${p.clr}22;border:1px solid ${p.clr}55;color:${p.clr};`:'background:transparent;border:1px solid rgba(255,255,255,.08);color:#64748b;'}`,lbl);
+          if(i===0){ btn.addEventListener('mouseenter',()=>{ btn.style.background=p.clr+'44'; }); btn.addEventListener('mouseleave',()=>{ btn.style.background=p.clr+'22'; }); }
+          actions.appendChild(btn);
+        });
+
+        card.append(hdr,sg,actions);
+        pg.appendChild(card);
+      });
+    }
+
+    /* ═══════════════════════════════════════
+       PAGE: TRANSACTIONS (full list)
+    ═══════════════════════════════════════ */
+    function initTx() {
+      buildTxTable(document.getElementById('tx-full-body'), DATA.txList, false);
+      buildTxCards(document.getElementById('tx-full-mobile'), DATA.txList, false);
+    }
+
+    function buildTxTable(tbody, list, short) {
+      if(!tbody) return;
+      (short ? list.slice(0,3) : list).forEach(tx => {
+        const [cls] = bdgMap[tx.st];
+        const tr = document.createElement('tr');
+        tr.className = 'tr';
+        const td = (content, styles) => {
+          const t = document.createElement('td');
+          t.style.cssText = styles || '';
+          if(typeof content === 'string') t.textContent = content;
+          else t.appendChild(content);
+          return t;
+        };
+        const badge = el('span','');
+        badge.className = cls;
+        badge.textContent = bdgMap[tx.st][1];
+        tr.append(
+          td(tx.hash,  "padding:.65rem 1rem .65rem 0;font-family:'Space Mono',monospace;font-size:11px;color:#a78bfa;"),
+          td(tx.icon+' '+tx.type,"padding:.65rem 1rem .65rem 0;font-size:.875rem;color:#cbd5e1;"),
+          td(tx.amount,`padding:.65rem 1rem .65rem 0;font-family:'Space Mono',monospace;font-size:.8rem;font-weight:700;color:${amtClr(tx.amount)};`),
+          td(tx.gas+' ETH',"padding:.65rem 1rem .65rem 0;font-family:'Space Mono',monospace;font-size:11px;color:#475569;"),
+          td(tx.time,  "padding:.65rem 1rem .65rem 0;font-family:'Space Mono',monospace;font-size:11px;color:#475569;"),
+          td(badge,    'padding:.65rem 0;')
+        );
+        tbody.appendChild(tr);
+      });
+    }
+
+    function buildTxCards(container, list, short) {
+      if(!container) return;
+      (short ? list.slice(0,3) : list).forEach(tx => {
+        const [cls,lbl] = bdgMap[tx.st];
+        const d = el('div','background:rgba(184,67,245,.04);border:1px solid rgba(184,67,245,.1);border-radius:.75rem;padding:.7rem;margin-bottom:.5rem;');
+        const r1=el('div','display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;');
+        const tyEl=el('span','font-size:.875rem;color:#cbd5e1;',tx.icon+' '+tx.type);
+        const badgeEl=el('span','');  badgeEl.className=cls; badgeEl.textContent=lbl;
+        r1.append(tyEl,badgeEl);
+        const r2=el('div','display:flex;justify-content:space-between;align-items:center;');
+        r2.append(
+          el('span',"font-family:'Space Mono',monospace;font-size:10px;color:#a78bfa;",tx.hash),
+          el('span',`font-family:'Space Mono',monospace;font-size:.8rem;font-weight:700;color:${amtClr(tx.amount)};`,tx.amount)
+        );
+        const r3=el('div','display:flex;justify-content:space-between;margin-top:.3rem;');
+        r3.append(
+          el('span',"font-family:'Space Mono',monospace;font-size:10px;color:#334155;",'Gas: '+tx.gas+' ETH'),
+          el('span',"font-family:'Space Mono',monospace;font-size:10px;color:#334155;",tx.time)
+        );
+        d.append(r1,r2,r3);
+        container.appendChild(d);
+      });
+    }
+
+    /* ═══════════════════════════════════════
+       WALLET
+    ═══════════════════════════════════════ */
+    const wBtn=document.getElementById('wallet-btn');
+    const wLbl=document.getElementById('wallet-lbl');
+    let wOn=false;
+    wBtn.addEventListener('click', async()=>{
+      wBtn.disabled=true; wBtn.style.opacity='.65';
+      await new Promise(r=>setTimeout(r,900));
+      wOn=!wOn;
+      if(wOn){
+        wLbl.textContent='0x4f3B...9a2E';
+        document.getElementById('sb-addr').textContent='0x4f3B2c8A1d5E7F0B6C9a2E4D3f1C8b0A9d2E';
+        document.getElementById('sb-stat').textContent='Connected ✓';
+        wBtn.style.background='linear-gradient(135deg,#059669,#10b981,#34d399)';
+        wBtn.style.boxShadow='0 0 24px rgba(16,185,129,.5)';
+      } else {
+        wLbl.textContent='Connect Wallet';
+        document.getElementById('sb-addr').textContent='Not connected';
+        document.getElementById('sb-stat').textContent='Not connected';
+        wBtn.style.background=''; wBtn.style.boxShadow='';
+      }
+      wBtn.disabled=false; wBtn.style.opacity='1';
+    });
+
+    /* ═══════════════════════════════════════
+       EMAIL MODAL
+    ═══════════════════════════════════════ */
+    const eBtn=document.getElementById('email-btn');
+    const eModal=document.getElementById('email-modal');
+    const eMClose=document.getElementById('modal-close');
+    const eEmail=document.getElementById('e-email');
+    const ePass=document.getElementById('e-pass');
+    const eSubmit=document.getElementById('e-submit');
+    const eLbl=document.getElementById('e-lbl');
+    const eStat=document.getElementById('e-status');
+    const eBtnLbl=document.getElementById('email-lbl');
+
+    function openModal()  { eModal.classList.add('open'); document.body.style.overflow='hidden'; setTimeout(()=>eEmail.focus(),80); }
+    function closeModal() { eModal.classList.remove('open'); document.body.style.overflow=''; eStat.style.display='none'; eEmail.value=''; ePass.value=''; }
+
+    eBtn.addEventListener('click',openModal);
+    eMClose.addEventListener('click',closeModal);
+    eModal.addEventListener('click',e=>{ if(e.target===eModal) closeModal(); });
+
+    function showEStat(msg,ok){
+      eStat.textContent=msg; eStat.style.display='block';
+      eStat.style.background=ok?'rgba(16,185,129,.1)':'rgba(245,158,11,.1)';
+      eStat.style.border=ok?'1px solid rgba(16,185,129,.3)':'1px solid rgba(245,158,11,.3)';
+      eStat.style.color=ok?'#34d399':'#fbbf24';
+    }
+
+    eSubmit.addEventListener('click', async()=>{
+      const raw=eEmail.value.trim();
+      const pw=ePass.value;
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)){ showEStat('⚠ Enter a valid email.',false); return; }
+      if(pw.length<6){ showEStat('⚠ Password min 6 chars.',false); return; }
+      if(pw.length>128){ showEStat('⚠ Password too long.',false); return; }
+      eSubmit.disabled=true; eLbl.textContent='Signing in...'; eStat.style.display='none';
+      await new Promise(r=>setTimeout(r,1100));
+      /* Sanitize username display — alphanumeric only */
+      const name=(raw.split('@')[0].replace(/[^a-zA-Z0-9_]/g,'').slice(0,20)) || 'User';
+      if(eBtnLbl) eBtnLbl.textContent=name;
+      eBtn.style.background='linear-gradient(135deg,#059669,#10b981,#34d399)';
+      eBtn.style.boxShadow='0 0 24px rgba(16,185,129,.5)';
+      const av=document.getElementById('sb-avatar'), un=document.getElementById('sb-user');
+      if(av) av.textContent=name[0].toUpperCase();
+      if(un) un.textContent=name;
+      showEStat('✓ Login successful!',true);
+      eSubmit.disabled=false; eLbl.textContent='Sign In';
+      setTimeout(closeModal,800);
+    });
+
+    /* ═══════════════════════════════════════
+       BOOT — init dashboard first
+    ═══════════════════════════════════════ */
+    showPage('dashboard');
+
+  })();
+  </script>
+
+</body>
+</html>
